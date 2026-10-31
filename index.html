@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secretaria EBD · IBNV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --preto:#141414;
+  --vermelho:#b3121f;
+  --vermelho-suave:#fbe9ea;
+  --branco:#ffffff;
+  --fundo:#f7f5f5;
+  --cinza:#6b6b6b;
+  --borda:#ece8e8;
+  --sombra:0 8px 28px rgba(20,20,20,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fundo);color:var(--preto);line-height:1.45}
+
+header{background:var(--branco);padding:18px 22px;display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--vermelho)}
+header img{height:52px;width:auto;object-fit:contain}
+header .titulo{font-size:20px;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:13px;color:var(--cinza)}
+
+nav{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px 0;max-width:1100px;margin:auto}
+nav button{border:0;background:var(--branco);color:var(--preto);padding:9px 16px;border-radius:999px;cursor:pointer;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:.2s}
+nav button:hover{transform:translateY(-1px)}
+nav button.ativo{background:var(--preto);color:var(--branco)}
+
+main{padding:16px;max-width:1100px;margin:auto}
+section{display:none}
+section.ativa{display:block;animation:surgir .35s ease}
+@keyframes surgir{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{background:var(--branco);border:1px solid var(--borda);border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:var(--sombra)}
+.card h3{margin:0 0 12px;font-size:17px}
+.linha{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:12px}
+.cabecalho-card{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+label{font-size:13px;color:var(--cinza);display:flex;flex-direction:column;gap:6px}
+input,select{padding:10px 12px;border:1px solid var(--borda);border-radius:12px;font-size:15px;background:#fff;color:var(--preto);min-width:0;transition:.2s}
+input:focus,select:focus{outline:none;border-color:var(--vermelho);box-shadow:0 0 0 4px var(--vermelho-suave)}
+.num{width:110px}
+
+button.primario{background:var(--vermelho);color:#fff;border:0;border-radius:999px;padding:10px 18px;cursor:pointer;font-size:14px;font-weight:600;box-shadow:0 6px 16px rgba(179,18,31,.25);transition:.2s}
+button.primario:hover{transform:translateY(-1px)}
+button.secundario{background:var(--branco);color:var(--preto);border:1px solid var(--borda);border-radius:999px;padding:9px 16px;cursor:pointer;font-size:14px;transition:.2s}
+button.secundario:hover{border-color:var(--preto)}
+button.perigo{background:var(--branco);color:var(--vermelho);border:1px solid #f1cfd2;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px}
+button.perigo:hover{background:var(--vermelho-suave)}
+
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--borda);text-align:left}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);font-weight:600}
+tfoot td{font-weight:700;background:var(--fundo)}
+
+.presenca{display:inline-flex;gap:6px}
+.presenca button{width:42px;height:34px;border-radius:10px;border:1px solid var(--borda);background:var(--branco);cursor:pointer;font-weight:700;color:var(--cinza);transition:.15s}
+.presenca button[data-v="P"].on{background:#1f7a3d;border-color:#1f7a3d;color:#fff}
+.presenca button[data-v="F"].on{background:var(--vermelho);border-color:var(--vermelho);color:#fff}
+
+.resumo{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.chip{background:var(--fundo);border-radius:14px;padding:10px 14px;font-size:12px;color:var(--cinza);min-width:118px}
+.chip b{display:block;font-size:20px;color:var(--preto);margin-top:2px}
+.chip.destaque{background:var(--vermelho-suave)}
+.chip.destaque b{color:var(--vermelho)}
+
+.contagem{font-size:13px;color:var(--cinza);font-weight:400}
+.nota{font-size:13px;color:var(--cinza);line-height:1.55;margin:8px 0 0}
+.aviso{font-size:13px;color:var(--vermelho);min-height:18px}
+.ok{font-size:13px;color:#1f7a3d}
+.vazio{color:var(--cinza);font-size:14px;padding:10px 0}
+.aluno-linha td:first-child{font-weight:500}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="logo-ibnv.png" alt="Logo Igreja Batista Nova Vida" onerror="this.style.display='none'">
+  <div>
+    <div class="titulo">Secretaria EBD</div>
+    <div class="sub">Igreja Batista Nova Vida</div>
+  </div>
+</header>
+
+<nav>
+  <button data-aba="lancamento" class="ativo" onclick="aba('lancamento')">Lançamento</button>
+  <button data-aba="alunos" onclick="aba('alunos')">Alunos e classes</button>
+  <button data-aba="relatorio" onclick="aba('relatorio')">Relatório</button>
+  <button data-aba="backup" onclick="aba('backup')">Backup</button>
+</nav>
+
+<main>
+
+<!-- LANÇAMENTO -->
+<section id="lancamento" class="ativa">
+  <div class="card">
+    <div class="linha">
+      <label>Domingo
+        <input type="date" id="lanc-data" onchange="renderLancamento()">
+      </label>
+      <label>Classe
+        <select id="lanc-classe" onchange="renderLancamento()"></select>
+      </label>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Aluno</th><th>Presença</th></tr></thead>
+        <tbody id="lanc-corpo"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Dados do dia</h3>
+    <div class="linha">
+      <label>Visitantes<input type="number" min="0" class="num" data-campo="visitantes" id="c-visitantes"></label>
+      <label>Bíblias<input type="number" min="0" class="num" data-campo="biblias" id="c-biblias"></label>
+      <label>Revistas<input type="number" min="0" class="num" data-campo="revistas" id="c-revistas"></label>
+      <label>Lição estudada<input type="number" min="0" class="num" data-campo="licao" id="c-licao"></label>
+      <label>Ofertas (R$)<input type="text" inputmode="decimal" class="num" data-campo="ofertas" id="c-ofertas" placeholder="0,00"></label>
+    </div>
+    <div class="resumo" id="lanc-resumo"></div>
+    <p class="nota">Tudo é salvo automaticamente neste aparelho. Faça um backup na aba Backup de tempos em tempos.</p>
+  </div>
+</section>
+
+<!-- ALUNOS -->
+<section id="alunos">
+  <div class="card">
+    <h3>Nova classe</h3>
+    <div class="linha">
+      <label>Nome da classe<input type="text" id="nova-classe" placeholder="Ex.: Joias de Cristo"></label>
+      <button class="primario" onclick="adicionarClasse()">Adicionar classe</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Novo aluno</h3>
+    <div class="linha">
+      <label>Classe
+        <select id="aluno-classe"></select>
+      </label>
+      <label>Nome do aluno<input type="text" id="novo-aluno" placeholder="Nome completo"></label>
+      <button class="primario" onclick="adicionarAluno()">Adicionar aluno</button>
+    </div>
+  </div>
+
+  <div id="lista-classes"></div>
+</section>
+
+<!-- RELATÓRIO -->
+<section id="relatorio">
+  <div class="card">
+    <div class="linha">
+      <label>De<input type="date" id="rel-de" onchange="renderRelatorio()"></label>
+      <label>Até<input type="date" id="rel-ate" onchange="renderRelatorio()"></label>
+      <label>Classe
+        <select id="rel-classe" onchange="renderRelatorio()"></select>
+      </label>
+      <button class="primario" onclick="exportarRelatorio()">Exportar Excel</button>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Domingo</th><th>Classe</th><th>Matric.</th><th>Ausentes</th><th>Presentes</th>
+            <th>Visitantes</th><th>Total</th><th>Bíblias</th><th>Revistas</th><th>Lição</th><th>Ofertas</th>
+          </tr>
+        </thead>
+        <tbody id="rel-corpo"></tbody>
+        <tfoot id="rel-rodape"></tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- BACKUP -->
+<section id="backup">
+  <div class="card">
+    <h3>Backup dos dados</h3>
+    <p class="nota">Os dados ficam guardados no navegador deste aparelho. Para usar em outro aparelho ou para não perder nada, baixe o backup e importe no outro.</p>
+    <div class="linha" style="margin-top:14px">
+      <button class="primario" onclick="exportarBackup()">Baixar backup (.json)</button>
+    </div>
+    <div class="linha">
+      <label>Importar backup
+        <input type="file" accept=".json,application/json" onchange="importarBackup(this.files[0])">
+      </label>
+    </div>
+    <p class="aviso" id="backup-aviso"></p>
+  </div>
+</section>
+
+</main>
+
+<script>
+const CHAVE = 'secretaria-ebd-v2';
+
+/* Classes e alunos, extraídos da planilha 12026RELATORIOSEBD_.xlsx */
+const CLASSES_PADRAO = [
+  { nome: 'Joias de Cristo', alunos: ['Wilma','Rosângela','Rose','Arão','Arthur','Ana luiza','Manuela dantas','Miguel','maya arlete','maitê','calebe','alice'] },
+  { nome: 'Ovelhas do Mestre', alunos: ['Camila','Letícia','Callebe','Laura','Mirella','Mariana','Luís Miguel','Lorena','Alice','daniel'] },
+  { nome: 'Mensageiros do Rei', alunos: ['Giulia','Giovanna','Esther','Pedro','Isaac','Gabriel','Evelyn','Heloísa','Isabelly torres','Eloisa reverte','Isabelle aylon','Raquel','André'] },
+  { nome: 'Lírios do Vale', alunos: ['Paulo','Sônia','Yasmim','Eduardo','Sthefani','Elias','Giovani','Ezequiel','Giovanna','Rhuan','cristian'] },
+  { nome: 'Arautos de Cristo', alunos: ['Pr Jessi','Tamires','Luís','Cláudio','Ester','Danilo','Márcia Rodrigues','Marcos Aurélio','Adailton','Isabela','Michelle','Filipe','Suellen','Salvador','Altair','Felipe Samuel','Edson Melo','Nubia','Eunice','Acyr','Samuel','Marcela','Edson','Louviene','Denise','Sandro','Vanessa','Cristiano','Amanda','Denis','Vanderli','Edvania','Paulo','Arlete','Márcia Maria'] }
+];
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+const inteiro = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? 0 : n; };
+const dataBR = iso => iso.split('-').reverse().join('/');
+const reais = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+
+function isoData(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function domingoAtual() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return isoData(d);
+}
+
+function novoBanco() {
+  return {
+    classes: CLASSES_PADRAO.map(c => {
+      const vistos = new Set();
+      const alunos = c.alunos
+        .filter(n => { const k = n.trim().toLowerCase(); if (vistos.has(k)) return false; vistos.add(k); return true; })
+        .map(n => ({ id: uid(), nome: n.trim() }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      return { id: uid(), nome: c.nome, alunos };
+    }),
+    aulas: {}
+  };
+}
+function carregar() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CHAVE));
+    return d && Array.isArray(d.classes) ? d : novoBanco();
+  } catch (e) { return novoBanco(); }
+}
+let db = carregar();
+function salvar() { localStorage.setItem(CHAVE, JSON.stringify(db)); }
+
+function aulaDe(data, cid) {
+  return (db.aulas[data] && db.aulas[data][cid]) ||
+    { matriculados: 0, presencas: {}, visitantes: 0, biblias: 0, revistas: 0, licao: 0, ofertas: 0 };
+}
+function editarAula(data, cid, fn) {
+  db.aulas[data] = db.aulas[data] || {};
+  const a = db.aulas[data][cid] = aulaDe(data, cid);
+  fn(a);
+  salvar();
+}
+function totais(data, c) {
+  const a = aulaDe(data, c.id);
+  const mat = c.alunos.length;
+  const pres = c.alunos.filter(al => a.presencas[al.id] === 'P').length;
+  return {
+    matriculados: mat, presentes: pres, ausentes: mat - pres,
+    visitantes: a.visitantes, total: pres + a.visitantes,
+    biblias: a.biblias, revistas: a.revistas, licao: a.licao, ofertas: a.ofertas
+  };
+}
+
+function preencherClasses(sel, incluirTodas) {
+  const antes = sel.value;
+  const opcoes = db.classes.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`);
+  if (incluirTodas) opcoes.unshift('<option value="todas">Todas as classes</option>');
+  sel.innerHTML = opcoes.join('');
+  if ([...sel.options].some(o => o.value === antes)) sel.value = antes;
+}
+
+function aba(nome) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('ativo', b.dataset.aba === nome));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('ativa', s.id === nome));
+  if (nome === 'lancamento') renderLancamento();
+  if (nome === 'alunos') renderAlunos();
+  if (nome === 'relatorio') renderRelatorio();
+}
+
+/* ---------- LANÇAMENTO ---------- */
+function classeAtual() { return db.classes.find(c => c.id === $('lanc-classe').value); }
+function dataAtual() { return $('lanc-data').value || domingoAtual(); }
+
+function renderLancamento() {
+  if (!$('lanc-data').value) $('lanc-data').value = domingoAtual();
+  preencherClasses($('lanc-classe'));
+  const c = classeAtual();
+  if (!c) {
+    $('lanc-corpo').innerHTML = '<tr><td colspan="2" class="vazio">Cadastre uma classe na aba Alunos e classes.</td></tr>';
+    $('lanc-resumo').innerHTML = '';
+    return;
+  }
+  const a = aulaDe(dataAtual(), c.id);
+  $('c-visitantes').value = a.visitantes;
+  $('c-biblias').value = a.biblias;
+  $('c-revistas').value = a.revistas;
+  $('c-licao').value = a.licao;
+  $('c-ofertas').value = a.ofertas ? String(a.ofertas).replace('.', ',') : '';
+  renderTabelaPresenca();
+  renderResumoLancamento();
+}
+
+function renderTabelaPresenca() {
+  const c = classeAtual();
+  if (!c) return;
+  const a = aulaDe(dataAtual(), c.id);
+  $('lanc-corpo').innerHTML = c.alunos.length
+    ? c.alunos.map(al => `
+        <tr class="aluno-linha">
+          <td>${esc(al.nome)}</td>
+          <td>
+            <div class="presenca">
+              <button data-aluno="${al.id}" data-v="P" class="${a.presencas[al.id] === 'P' ? 'on' : ''}" title="Presente">P</button>
+              <button data-aluno="${al.id}" data-v="F" class="${a.presencas[al.id] === 'F' ? 'on' : ''}" title="Ausente">F</button>
+            </div>
+          </td>
+        </tr>`).join('')
+    : '<tr><td colspan="2" class="vazio">Nenhum aluno nesta classe. Use a aba Alunos e classes.</td></tr>';
+}
+
+function renderResumoLancamento() {
+  const c = classeAtual();
+  if (!c) return;
+  const t = totais(dataAtual(), c);
+  $('lanc-resumo').innerHTML = [
+    ['Matriculados', t.matriculados], ['Presentes', t.presentes], ['Ausentes', t.ausentes],
+    ['Visitantes', t.visitantes], ['Total no dia', t.total, true], ['Ofertas', reais(t.ofertas)]
+  ].map(([k, v, d]) => `<div class="chip ${d ? 'destaque' : ''}">${k}<b>${v}</b></div>`).join('');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-v][data-aluno]');
+  if (!b) return;
+  const c = classeAtual();
+  if (!c) return;
+  const id = b.dataset.aluno, v = b.dataset.v;
+  editarAula(dataAtual(), c.id, a => {
+    a.matriculados = c.alunos.length;
+    if (a.presencas[id] === v) delete a.presencas[id];
+    else a.presencas[id] = v;
+  });
+  renderTabelaPresenca();
+  renderResumoLancamento();
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (!t.dataset.campo) return;
+  const c = classeAtual();
+  if (!c) return;
+  const campo = t.dataset.campo;
+  editarAula(dataAtual(), c.id, a => {
+    a.matriculados = c.alunos.length;
+    a[campo] = campo === 'ofertas' ? num(t.value) : inteiro(t.value);
+  });
+  renderResumoLancamento();
+});
+
+/* ---------- ALUNOS E CLASSES ---------- */
+function renderAlunos() {
+  preencherClasses($('aluno-classe'));
+  $('lista-classes').innerHTML = db.classes.map(c => `
+    <div class="card">
+      <div class="cabecalho-card">
+        <h3 style="margin:0">${esc(c.nome)} <span class="contagem">· ${c.alunos.length} alunos</span></h3>
+        <button class="perigo" onclick="removerClasse('${c.id}')">Remover classe</button>
+      </div>
+      <div style="margin-top:12px">
+        ${c.alunos.length ? `<table><tbody>${c.alunos.map(al => `
+          <tr>
+            <td>${esc(al.nome)}</td>
+            <td style="text-align:right"><button class="perigo" onclick="removerAluno('${c.id}','${al.id}')">Remover</button></td>
+          </tr>`).join('')}</tbody></table>` : '<p class="vazio">Nenhum aluno cadastrado.</p>'}
+      </div>
+    </div>`).join('');
+}
+
+function adicionarClasse() {
+  const nome = $('nova-classe').value.trim();
+  if (!nome) return;
+  if (db.classes.some(c => c.nome.toLowerCase() === nome.toLowerCase())) { alert('Já existe uma classe com esse nome.'); return; }
+  db.classes.push({ id: uid(), nome, alunos: [] });
+  $('nova-classe').value = '';
+  salvar();
+  renderAlunos();
+}
+
+function removerClasse(cid) {
+  const c = db.classes.find(x => x.id === cid);
+  if (!confirm(`Remover a classe "${c.nome}"? O histórico de lançamentos continua guardado.`)) return;
+  db.classes = db.classes.filter(x => x.id !== cid);
+  salvar();
+  renderAlunos();
+}
+
+function adicionarAluno() {
+  const nome = $('novo-aluno').value.trim();
+  const c = db.classes.find(x => x.id === $('aluno-classe').value);
+  if (!nome || !c) return;
+  if (c.alunos.some(al => al.nome.toLowerCase() === nome.toLowerCase())) { alert('Esse aluno já está nesta classe.'); return; }
+  c.alunos.push({ id: uid(), nome });
+  c.alunos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  $('novo-aluno').value = '';
+  salvar();
+  renderAlunos();
+}
+
+function removerAluno(cid, alId) {
+  const c = db.classes.find(x => x.id === cid);
+  const al = c.alunos.find(x => x.id === alId);
+  if (!confirm(`Remover ${al.nome} da classe ${c.nome}?`)) return;
+  c.alunos = c.alunos.filter(x => x.id !== alId);
+  salvar();
+  renderAlunos();
+}
+
+/* ---------- RELATÓRIO ---------- */
+function linhasRelatorio() {
+  const de = $('rel-de').value || '0000-01-01';
+  const ate = $('rel-ate').value || '9999-12-31';
+  const cid = $('rel-classe').value;
+  const linhas = [];
+  Object.keys(db.aulas).filter(d => d >= de && d <= ate).sort().forEach(d => {
+    db.classes.forEach(c => {
+      if (cid !== 'todas' && c.id !== cid) return;
+      if (!db.aulas[d][c.id]) return;
+      const t = totais(d, c);
+      linhas.push({
+        Domingo: dataBR(d), Classe: c.nome,
+        Matriculados: t.matriculados, Ausentes: t.ausentes, Presentes: t.presentes,
+        Visitantes: t.visitantes, Total: t.total,
+        Bíblias: t.biblias, Revistas: t.revistas, 'Lição estudada': t.licao,
+        Ofertas: Number(t.ofertas.toFixed(2))
+      });
+    });
+  });
+  return linhas;
+}
+
+function renderRelatorio() {
+  preencherClasses($('rel-classe'), true);
+  const linhas = linhasRelatorio();
+  const chaves = ['Matriculados', 'Ausentes', 'Presentes', 'Visitantes', 'Total', 'Bíblias', 'Revistas', 'Lição estudada', 'Ofertas'];
+  $('rel-corpo').innerHTML = linhas.length ? linhas.map(l => `
+    <tr>
+      <td>${l.Domingo}</td><td>${esc(l.Classe)}</td>
+      ${chaves.map(k => `<td>${k === 'Ofertas' ? reais(l[k]) : l[k]}</td>`).join('')}
+    </tr>`).join('') : '<tr><td colspan="11" class="vazio">Nenhum lançamento no período.</td></tr>';
+
+  const soma = {};
+  chaves.forEach(k => soma[k] = linhas.reduce((s, l) => s + l[k], 0));
+  $('rel-rodape').innerHTML = linhas.length ? `
+    <tr>
+      <td colspan="2">Totais do período</td>
+      ${chaves.map(k => `<td>${k === 'Ofertas' ? reais(soma[k]) : soma[k]}</td>`).join('')}
+    </tr>` : '';
+}
+
+function exportarRelatorio() {
+  const linhas = linhasRelatorio();
+  if (!linhas.length) { alert('Não há lançamentos no período para exportar.'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), 'Relatório EBD');
+  XLSX.writeFile(wb, 'relatorio-ebd-' + domingoAtual() + '.xlsx');
+}
+
+/* ---------- BACKUP ---------- */
+function exportarBackup() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'secretaria-ebd-backup-' + domingoAtual() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importarBackup(arquivo) {
+  if (!arquivo) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    try {
+      const d = JSON.parse(leitor.result);
+      if (!Array.isArray(d.classes) || typeof d.aulas !== 'object') throw new Error('formato');
+      if (!confirm('Importar este backup vai substituir os dados atuais deste aparelho. Continuar?')) return;
+      db = d;
+      salvar();
+      $('backup-aviso').className = 'ok';
+      $('backup-aviso').textContent = 'Backup importado com sucesso.';
+      aba('lancamento');
+    } catch (e) {
+      $('backup-aviso').className = 'aviso';
+      $('backup-aviso').textContent = 'Arquivo inválido. Use um backup gerado por este aplicativo.';
+    }
+  };
+  leitor.readAsText(arquivo);
+}
+
+/* ---------- INÍCIO ---------- */
+$('lanc-data').value = domingoAtual();
+$('rel-de').value = domingoAtual().slice(0, 8) + '01';
+$('rel-ate').value = domingoAtual();
+aba('lancamento');
+</script>
+</body>
+</html>
